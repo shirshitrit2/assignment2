@@ -6,188 +6,211 @@
 #include "igl/edge_flaps.h"
 #include "igl/AABB.h"
 #include <utility>
+#include <per_vertex_normals.h>
+
 
 // #include "AutoMorphingModel.h"
 
 using namespace cg3d;
 
-void BasicScene::RenderBoundingBox(Eigen::MatrixXd V,Eigen::MatrixXi F){
-// Find the bounding box
-    Eigen::Vector3d m = V.colwise().minCoeff();
-    Eigen::Vector3d M = V.colwise().maxCoeff();
+Eigen::MatrixXi BasicScene::create_F(){
+    Eigen::MatrixXi boxF;
+
+    Eigen::Vector3i f1={11,22,33};
+    Eigen::Vector3i f2={33,22,44};
+    Eigen::Vector3i f3={31,42,53};
+    Eigen::Vector3i f4={53,42,64};
+    Eigen::Vector3i f5={51,62,73};
+    Eigen::Vector3i f6={73,62,84};
+    Eigen::Vector3i f7={71,82,13};
+    Eigen::Vector3i f8={13,82,24};
+    Eigen::Vector3i f9={21,82,43};
+    Eigen::Vector3i f10={43,82,64};
+    Eigen::Vector3i f11={71,12,53};
+    Eigen::Vector3i f12={53,12,34};
+
+    boxF.resize(12,3);
+    boxF.row(0)= f1;
+    boxF.row(1)= f2;
+    boxF.row(2)=f3;
+    boxF.row(3)=f4;
+    boxF.row(4)=f5;
+    boxF.row(5)=f6;
+    boxF.row(6)=f7;
+    boxF.row(7)=f8;
+    boxF.row(8)=f9;
+    boxF.row(9)=f10;
+    boxF.row(10)=f11;
+    boxF.row(11)=f12;
+    return boxF;
+
+}
+
+Eigen::MatrixXd BasicScene::create_V(Eigen::AlignedBox<double,3> B){
+    Eigen::Vector3d blf=B.corner(B.BottomLeftFloor);
+    Eigen::Vector3d brf=B.corner(B.BottomRightFloor);
+    Eigen::Vector3d trf=B.corner(B.TopRightFloor);
+    Eigen::Vector3d tlf=B.corner(B.TopLeftFloor);
+    Eigen::Vector3d brc=B.corner(B.BottomRightCeil);
+    Eigen::Vector3d blc=B.corner(B.BottomLeftCeil);
+    Eigen::Vector3d trc=B.corner(B.TopRightCeil);
+    Eigen::Vector3d tlc=B.corner(B.TopLeftCeil);
 
 
-    // Corners of the bounding box
-    Eigen::MatrixXd V_box(8,3);
-    V_box <<
-          m(0), m(1), m(2),
-            M(0), m(1), m(2),
-            M(0), M(1), m(2),
-            m(0), M(1), m(2),
-            m(0), m(1), M(2),
-            M(0), m(1), M(2),
-            M(0), M(1), M(2),
-            m(0), M(1), M(2);
-
-    // Edges of the bounding box
-    Eigen::MatrixXi E_box(12,2);
-    E_box <<
-          0, 1,
-            1, 2,
-            2, 3,
-            3, 0,
-            4, 5,
-            5, 6,
-            6, 7,
-            7, 4,
-            0, 4,
-            1, 5,
-            2, 6,
-            7 ,3;
-
-    // Plot the mesh
-    igl::opengl::glfw::Viewer viewer;
-    viewer.data().set_mesh(V, F);
-
-    igl::read_triangle_mesh("data/cube.off",V,F);
-
-
-    // Plot the corners of the bounding box as points
-    viewer.data().add_points(V_box,Eigen::RowVector3d(1,0,0));
-
-    // Plot the edges of the bounding box
-    for (unsigned i=0;i<E_box.rows(); ++i)
-        viewer.data().add_edges
-                (
-                        V_box.row(E_box(i,0)),
-                        V_box.row(E_box(i,1)),
-                        Eigen::RowVector3d(1,0,0)
-                );
+    std::cout<< blf <<std::endl;
+    std::cout<< brf <<std::endl;
+    std::cout<< trf <<std::endl;
+    std::cout<< tlf <<std::endl;
+    std::cout<< brc <<std::endl;
+    std::cout<< blc <<std::endl;
+    std::cout<< trc <<std::endl;
+    std::cout<< tlc <<std::endl;
 
 
 
-    // Launch the viewer
-    viewer.launch();
+    Eigen::MatrixXd V;
+    V.resize(8,3);
+    V.row(0)=blc;
+    V.row(1)=brc;
+    V.row(2)=tlc;
+    V.row(3)=trc;
+    V.row(4)=tlf;
+    V.row(5)=trf;
+    V.row(6)=blf;
+    V.row(7)=brf;
+
+    return V;
+
 }
 
 bool BasicScene::findSmallestBox(igl::AABB<Eigen::MatrixXd ,3> tree1, igl::AABB<Eigen::MatrixXd ,3> tree2){
-    if(isCollide(tree1,tree2)){
-            if(!isCollide(*tree1.m_right,*tree2.m_right) &&
-               !isCollide(*tree1.m_right, *tree2.m_left) &&
-               !isCollide(*tree1.m_left,*tree2.m_left) &&
-               !isCollide(*tree1.m_left,*tree2.m_right)){
-                return true;
-            }
-            else if(tree1.is_leaf() && !tree2.is_leaf())
-                return findSmallestBox(tree1,*tree2.m_left) || findSmallestBox(tree1,*tree2.m_right);
-            else if(!tree1.is_leaf() && tree2.is_leaf())
-                return findSmallestBox(*tree1.m_left,tree2) || findSmallestBox(*tree1.m_right,tree2);
-            else
-                return findSmallestBox(*tree1.m_right,*tree2.m_right) ||
-                       findSmallestBox(*tree1.m_right, *tree2.m_left) ||
-                       findSmallestBox(*tree1.m_left,*tree2.m_left) ||
-                       findSmallestBox(*tree1.m_left,*tree2.m_right);
+    if(isCollide(tree1,tree2)) {
+
+        if (tree1.is_leaf() && tree2.is_leaf()) {
+            smallestbox1=tree1.m_box;
+            smallestbox2=tree2.m_box;
+            return true;
+        } else if (tree1.is_leaf() && !tree2.is_leaf())
+            return findSmallestBox(tree1, *tree2.m_left) || findSmallestBox(tree1, *tree2.m_right);
+        else if (!tree1.is_leaf() && tree2.is_leaf())
+            return findSmallestBox(*tree1.m_left, tree2) || findSmallestBox(*tree1.m_right, tree2);
+        else {
+            return findSmallestBox(*tree1.m_right, *tree2.m_right) ||
+                   findSmallestBox(*tree1.m_right, *tree2.m_left) ||
+                   findSmallestBox(*tree1.m_left, *tree2.m_left) ||
+                   findSmallestBox(*tree1.m_left, *tree2.m_right);
+        }
     }
-
-//    while (!stack.empty()){
-//        stack.top();
-//    }
-//    if(isCollide(tree1,tree2)) {
-//        stack.push(tree1);
-//        stack.push(tree2);
-//        while (!stack.empty()){
-//            igl::AABB<Eigen::Matrix<double,-1,-1,0>,3> currtree1=stack.top();
-//            igl::AABB<Eigen::Matrix<double,-1,-1,0>,3> currtree2=stack.top();
-//
-//            if(isCollide(currtree1,currtree2)){
-//                if(currtree1.is_leaf() && currtree2.is_leaf()){
-//                    stack.push(currtree1);
-//                    stack.push(currtree2);
-//                    return true;
-//                }
-//                else if(currtree1.is_leaf() && !currtree2.is_leaf()){
-//                    stack.push(currtree1);
-//                    stack.push(*currtree2.m_right);
-//                    stack.push(currtree1);
-//                    stack.push(*currtree2.m_left);
-//                }else if(!currtree1.is_leaf() && currtree2.is_leaf()){
-//                    stack.push(currtree2);
-//                    stack.push(*currtree1.m_right);
-//                    stack.push(currtree2);
-//                    stack.push(*currtree1.m_left);
-//                } else{
-//                    stack.push(*tree1.m_left);
-//                    stack.push(*tree2.m_right);
-//                    stack.push(*tree1.m_left);
-//                    stack.push(*tree2.m_left);
-//                    stack.push(*tree1.m_right);
-//                    stack.push(*tree2.m_right);
-//                    stack.push(*tree1.m_right);
-//                    stack.push(*tree2.m_left);
-//                }
-//            }
-//        }
-//        return false;
-//    }
-
-
-
-
-
-
-//        if(tree1.is_leaf() && tree2.is_leaf()){
-//            return true;
-//        }
-//        else if(tree1.is_leaf() && !tree2.is_leaf())
-//            return findSmallestBox(tree1,*tree2.m_left) || findSmallestBox(tree1,*tree2.m_right);
-//        else if(!tree1.is_leaf() && tree2.is_leaf())
-//            return findSmallestBox(*tree1.m_left,tree2) || findSmallestBox(*tree1.m_right,tree2);
-//        else{
-//            return findSmallestBox(*tree1.m_right,*tree2.m_right) ||
-//                    findSmallestBox(*tree1.m_right, *tree2.m_left) ||
-//                    findSmallestBox(*tree1.m_left,*tree2.m_left) ||
-//                    findSmallestBox(*tree1.m_left,*tree2.m_right);
-//        }
-
 }
 
 bool BasicScene::isCollide(igl::AABB<Eigen::MatrixXd,3> tree1, igl::AABB<Eigen::MatrixXd,3> tree2){
-//    auto mesh1 = bunny1->GetMeshList();
-//    auto mesh2= bunny2->GetMeshList();
-//    V1 = mesh1[0]->data[0].vertices;
-//    F1 = mesh1[0]->data[0].faces;
-//    V2 = mesh2[0]->data[0].vertices;
-//    F2 = mesh2[0]->data[0].faces;
 
-    Eigen::Matrix<float,4,4> T1= bunny1->GetTransform();
-    Eigen::Matrix<float,4,4> T2= bunny2->GetTransform();
+    Eigen::AlignedBox<double,3> box1=tree1.m_box;
+    Eigen::AlignedBox<double,3> box2=tree2.m_box;
+
+    double scale=10;
+    double a0=box1.sizes()[0]*scale/2;
+    double a1=box1.sizes()[1]*scale/2;
+    double a2=box1.sizes()[2]*scale/2;
+
+    double b0=box2.sizes()[0]*scale/2;
+    double b1=box2.sizes()[1]*scale/2;
+    double b2=box2.sizes()[2]*scale/2;
+
+    Eigen::MatrixXd A=bunny1->GetRotation().cast<double>();
+    Eigen::MatrixXd B=bunny2->GetRotation().cast<double>();
+
+    Eigen::Vector3d A0=A*Eigen::Vector3d(1,0,0);
+    Eigen::Vector3d A1=A*Eigen::Vector3d(0,1,0);
+    Eigen::Vector3d A2=A*Eigen::Vector3d(0,0,1);
 
 
-    Eigen::Matrix<float,4,1> new1={tree1.m_box.min().x(), tree1.m_box.min().y(), tree1.m_box.min().z(), 1};
-    Eigen::Matrix<float,4,1> newmin1=T1*new1;
-    Eigen::Matrix<float,4,1> new2={tree1.m_box.max().x(), tree1.m_box.max().y(), tree1.m_box.max().z(), 1};
-    Eigen::Matrix<float,4,1> newmax1=T1*new2;
-    Eigen::Matrix<float,4,1> new3={tree2.m_box.min().x(), tree2.m_box.min().y(), tree2.m_box.min().z(), 1};
-    Eigen::Matrix<float,4,1> newmin2=T2*new1;
-    Eigen::Matrix<float,4,1> new4={tree2.m_box.max().x(), tree2.m_box.max().y(), tree2.m_box.max().z(), 1};
-    Eigen::Matrix<float,4,1> newmax2=T2*new2;
-    double minx1=newmin1.x();
-    double miny1=newmin1.y();
-    double maxx1=newmax1.x();
-    double maxy1=newmax1.y();
+    Eigen::Vector3d B0=B*Eigen::Vector3d(1,0,0);
+    Eigen::Vector3d B1=B*Eigen::Vector3d(0,1,0);
+    Eigen::Vector3d B2=B*Eigen::Vector3d(0,0,1);
 
-    double minx2=newmin2.x();
-    double miny2=newmin2.y();
-    double maxx2=newmax2.x();
-    double maxy2=newmax2.y();
+    Eigen::MatrixXd C=A.transpose()*B;
 
-    if(maxx1 > minx2 &&
-       minx1 < maxx2 &&
-       maxy1 > miny2 &&
-       miny1 < maxy2){
-        return true;
+    Eigen::Vector4f center0={box1.center().x(),box1.center().y(),box1.center().z(),1};
+    Eigen::Vector4f C0=bunny1->GetTransform()*center0;
+    Eigen::Vector4f center1={box2.center().x(),box2.center().y(),box2.center().z(),1};
+    Eigen::Vector4f C1=bunny2->GetTransform()*center1;
+
+
+    Eigen::Vector3d newC0= {C0[0],C0[1],C0[2]};
+    Eigen::Vector3d newC1= {C1[0],C1[1],C1[2]};
+
+    Eigen::Vector3d D=newC1-newC0;
+
+    if(abs(A0.dot(D)) > a0+(b0 * abs(C(0, 0))) + (b1 * abs(C(0, 1))) + (b2 * abs(C(0, 2)))){
+        return false;
     }
-    return false;
+
+    if(abs(A1.dot(D)) > a1+(b0 * abs(C(1, 0))) + (b1 * abs(C(1, 1))) + (b2 * abs(C(1, 2)))){
+        return false;
+    }
+
+    if(abs(A2.dot(D)) > a2+(b0 * abs(C(2, 0))) + (b1 * abs(C(2, 1))) + (b2 * abs(C(2, 2)))){
+        return false;
+    }
+
+    if(abs(B0.dot(D)) > (a0 * abs(C(0, 0))) + (a1 * abs(C(1, 0))) + (a2 * abs(C(2, 0))) + b0){
+        return false;
+    }
+
+    if(abs(B1.dot(D)) > (a0 * abs(C(0, 1))) + (a1 * abs(C(1, 1))) + (a2 * abs(C(2, 1)))+b1){
+        return false;
+    }
+
+    if(abs(B2.dot(D)) > (a0 * abs(C(0, 2))) + (a1 * abs(C(1, 2))) + (a2 * abs(C(2, 2)))+b2){
+        return false;
+    }
+
+    if(abs((C(1, 0) * A2).dot(D) - (C(2, 0) * A1).dot(D)) > (a1 * abs(C(2, 0))) + (a2 * abs(C(1, 0))) + (b1 * abs(C(0, 2))) + (b2 * abs(C(0, 1))) )
+    {
+        return false;
+    }
+
+    if(abs((C(1, 1) * A2).dot(D) - (C(2, 1) * A1).dot(D)) > (a1 * abs(C(2, 1))) + (a2 * abs(C(1, 1))) + (b0 * abs(C(0, 2))) + (b2 * abs(C(0, 0))) )
+    {
+        return false;
+    }
+
+    if(abs((C(1, 2) * A2).dot(D) - (C(2, 2) * A1).dot(D)) > (a1 * abs(C(2, 2))) + (a2 * abs(C(1, 2))) + (b0 * abs(C(0, 1))) + (b1 * abs(C(0, 0))))
+    {
+        return false;
+    }
+
+    if(abs((C(2, 0) * A0).dot(D) - (C(0, 0) * A2).dot(D)) >(a0 * abs(C(2, 0))) + (a2 * abs(C(0, 0))) + (b1 * abs(C(1, 2))) + (b2 * abs(C(1, 1))) )
+    {
+        return false;
+    }
+
+    if(abs((C(2, 1) * A0).dot(D) - (C(0, 1) * A2).dot(D)) > (a0 * abs(C(2, 1))) + (a2 * abs(C(0, 1))) +(b0 * abs(C(1, 2))) + (b2 * abs(C(1, 0))) )
+    {
+        return false;
+    }
+
+    if(abs((C(2, 2) * A0).dot(D) - (C(0, 2) * A2).dot(D)) > (a0 * abs(C(2, 2))) + (a2 * abs(C(0, 2))) + (b0 * abs(C(1, 1))) + (b1 * abs(C(1, 0))))
+    {
+        return false;
+    }
+
+    if(abs((C(0, 0) * A1).dot(D) - (C(1, 0) * A0).dot(D)) > (a0 * abs(C(1, 0))) + (a1 * abs(C(0, 0))) +(b1 * abs(C(2, 2))) + (b2 * abs(C(2, 1))) )
+    {
+        return false;
+    }
+
+    if(abs((C(0, 1) * A1).dot(D) - (C(1, 1) * A0).dot(D)) > (a0 * abs(C(1, 1))) + (a1 * abs(C(0, 1))) + (b0 * abs(C(2, 2))) + (b2 * abs(C(2, 0))))
+    {
+        return false;
+    }
+
+    if(abs((C(0, 2) * A1).dot(D) - (C(1, 2) * A0).dot(D)) > (a0 * abs(C(1, 2))) + (a1 * abs(C(0, 2))) + (b0 * abs(C(2, 1))) + (b1 * abs(C(2, 0)))) {
+        return false;
+    }
+    return true;
+
 
 }
 
@@ -234,13 +257,7 @@ void BasicScene::Init(float fov, int width, int height, float near, float far)
     bunny_velocity={1,0,0};
     auto mesh1 = bunny1->GetMeshList();
     auto mesh2= bunny2->GetMeshList();
-//    Eigen::VectorXi EMAP;
-//    Eigen::MatrixXi F,E,EF,EI;
-//    Eigen::VectorXi EQ;
-//  // If an edge were collapsed, we'd collapse it to these points:
-//    Eigen::MatrixXd V, C;
-//    int num_collapsed;
-//
+
 //  // Function to reset original mesh and data structures
     V1 = mesh1[0]->data[0].vertices;
     F1 = mesh1[0]->data[0].faces;
@@ -250,55 +267,32 @@ void BasicScene::Init(float fov, int width, int height, float near, float far)
     tree1.init(V1,F1);
     tree2.init(V2,F2);
 
+//    Eigen::MatrixXd box1V=create_V(tree1.m_box);
+//    Eigen::MatrixXi boxF=create_F();
+//
+//    Eigen::MatrixXd boxN;
+//    igl::per_vertex_normals(box1V, boxF, boxN);
+//
+//    std::shared_ptr<cg3d::Mesh> bb= std::make_shared<cg3d::Mesh>(cg3d::Mesh("bounding_box", box1V, boxF, boxN, {}));
+//
 
-    //Rendering the bounding box of the bunnies
-    cube1 = Model::Create("cube", Mesh::Cube(), material);
+    cube1 = Model::Create("cube",Mesh::Cube() , material);
     cube2 = Model::Create("cube", Mesh::Cube(), material);
 
     Eigen::Matrix<float,4,4> T1= bunny1->GetTransform();
     Eigen::Matrix<float,4,4> T2= bunny2->GetTransform();
 
-    auto meshcube = cube1->GetMeshList();
+    cube1->aggregatedTransform=bunny1->aggregatedTransform;
+    cube2->aggregatedTransform=bunny2->aggregatedTransform;
 
-//////////////////////////////
-    //RenderBoundingBox(V1,F1);
-/////////////////////////////
-    AddChild(cube1);
-    AddChild(cube2);
+    bunny1->AddChild(cube1);
+    bunny2->AddChild(cube2);
 
 
-    Eigen::Matrix<float,3,1> center={tree1.m_box.center().x(),tree1.m_box.center().y(),tree1.m_box.center().z()};
-    Eigen::Matrix<float,4,1> newcenter=T1*newcenter;
-//
-    cube1->SetCenter(center);
-    cube1->SetTransform(T1);
-   // cube1->Scale(0.8);
-  //  cube1->Translate({-2.3,1,0});
     cube1->showFaces= false;
-    cube2->Translate({1.7,1,0});
-    cube2->Scale(0.8);
     cube2->showFaces= false;
 
-    cubeV=Mesh::Cube()->data[0].vertices;
 
-
-    //igl::read_triangle_mesh("data/cube.off",V1,F1);
-
-//    tree2.init(V2,F2);
-//    std::list<Eigen::AlignedBox<double,3>::CornerType> P1;
-//    P1.push_back(tree2.m_box.BottomLeftCeil);
-//    P1.push_back(tree2.m_box.BottomLeftFloor);
-
-
-//   // igl::read_triangle_mesh("data/cube.off",V,F);
-//    igl::edge_flaps(F,E,EMAP,EF,EI);
-//    std::cout<< "vertices: \n" << V <<std::endl;
-//    std::cout<< "faces: \n" << F <<std::endl;
-//
-//    std::cout<< "edges: \n" << E.transpose() <<std::endl;
-//    std::cout<< "edges to faces: \n" << EF.transpose() <<std::endl;
-//    std::cout<< "faces to edges: \n "<< EMAP.transpose()<<std::endl;
-//    std::cout<< "edges indices: \n" << EI.transpose() <<std::endl;
 
 }
 
@@ -307,22 +301,9 @@ void BasicScene::Update(const Program& program, const Eigen::Matrix4f& proj, con
     Scene::Update(program, proj, view, model);
     program.SetUniform4f("lightColor", 1.0f, 1.0f, 1.0f, 0.5f);
     program.SetUniform4f("Kai", 1.0f, 1.0f, 1.0f, 1.0f);
-    //cube->Rotate(0.01f, Axis::All);
 
-    Eigen::Matrix<float,4,4> T1= bunny1->GetTransform();
-    Eigen::Matrix<float,4,4> T2= bunny2->GetTransform();
-    cube1->SetTransform(T1);
-    cube2->SetTransform(T2);
-
-
-
-
-
-        bunny1->Translate(0.05*(bunny_velocity.at(0)),Axis::X);
-        bunny1->Translate(0.05*(bunny_velocity.at(1)),Axis::Y);
-//        cube1->Translate(0.05*(bunny_velocity.at(0)),Axis::X);
-//        cube1->Translate(0.05*(bunny_velocity.at(1)),Axis::Y);
-
+    bunny1->Translate(0.05*(bunny_velocity.at(0)),Axis::X);
+    bunny1->Translate(0.05*(bunny_velocity.at(1)),Axis::Y);
 
 
     if(findSmallestBox(tree1,tree2)){
@@ -343,8 +324,8 @@ void BasicScene::KeyCallback(cg3d::Viewport *_viewport, int x, int y, int key, i
             bunny_velocity={1,0,0};
         } else if(key==GLFW_KEY_LEFT){
             bunny_velocity={-1,0,0};
-        } else if(key==GLFW_KEY_1){
-            pickedModel=bunny1;
+        } else if(key==GLFW_KEY_2){
+            pickedModel=bunny2;
         }
 
     }
