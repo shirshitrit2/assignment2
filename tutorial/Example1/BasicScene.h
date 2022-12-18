@@ -14,16 +14,20 @@ public:
     void Update(const cg3d::Program& program, const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view, const Eigen::Matrix4f& model) override;
     bool isCollide(igl::AABB<Eigen::MatrixXd,3> tree1, igl::AABB<Eigen::MatrixXd,3> tree2);
     bool findSmallestBox(igl::AABB<Eigen::MatrixXd,3> tree1, igl::AABB<Eigen::MatrixXd,3> tree2);
-    void RenderBoundingBox(Eigen::MatrixXd V,Eigen::MatrixXi F);
+    Eigen::MatrixXd create_V(Eigen::AlignedBox<double,3> B);
+    Eigen::MatrixXi create_F();
 
-private:
+
+
+        private:
     std::shared_ptr<Movable> root;
     std::shared_ptr<cg3d::Model> cube1,cube2;
+    std::shared_ptr<cg3d::Mesh> bb;
     std::shared_ptr<cg3d::Model> bunny1, bunny2 ;
     std::vector<int> bunny_velocity;
     std::vector<int> cube_velocity=bunny_velocity;
     Eigen::MatrixXi F1,F2;
     Eigen::MatrixXd V1,V2,cubeV;
     igl::AABB<Eigen::MatrixXd,3> tree1,tree2;
-    std::stack<igl::AABB<Eigen::Matrix<double,-1,-1,0>,3>> stack;
+    Eigen::AlignedBox<double,3> smallestbox1, smallestbox2;
 };
